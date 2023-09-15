@@ -1,15 +1,14 @@
+import jwt
 from flask import Flask, request, abort
 import json
 from functools import wraps
-from jose import jwt
 from urllib.request import urlopen
-
 
 app = Flask(__name__)
 
-AUTH0_DOMAIN = @TODO_REPLACE_WITH_YOUR_DOMAIN
-ALGORITHMS = ['RS256']
-API_AUDIENCE = @TODO_REPLACE_WITH_YOUR_API_AUDIENCE
+AUTH0_DOMAIN ='dev-18pghz5r0pmfn1pf.us.auth0.com'
+ALGORITHMS = 'RS256'
+API_AUDIENCE = 'image'
 
 
 class AuthError(Exception):
@@ -73,6 +72,7 @@ def verify_decode_jwt(token):
             }
     if rsa_key:
         try:
+            print('test')
             payload = jwt.decode(
                 token,
                 rsa_key,
@@ -80,6 +80,7 @@ def verify_decode_jwt(token):
                 audience=API_AUDIENCE,
                 issuer='https://' + AUTH0_DOMAIN + '/'
             )
+            print('payload')
 
             return payload
 
@@ -105,20 +106,41 @@ def verify_decode_jwt(token):
             }, 400)
 
 
-def requires_auth(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        token = get_token_auth_header()
-        try:
-            payload = verify_decode_jwt(token)
-        except:
-            abort(401)
-        return f(payload, *args, **kwargs)
+def check_permissions(permission, payload):
+    if 'permissions' not in payload:
+        abort(400)
+    if permission not in payload['permissions']:
+        raise AuthError({
+            'code': 'unauthorized',
+            'description': 'Permission not found.'
+        }, 403)
+    return True
 
-    return wrapper
+def requires_auth(permission=''):
+    def requires_auth_decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            token = get_token_auth_header()
+            try:
+                payload = verify_decode_jwt(token)
+            except:
+                abort(401)
+
+            check_permissions(permission, payload)
+
+            return f(payload, *args, **kwargs)
+
+        return wrapper
+    return requires_auth_decorator
 
 @app.route('/headers')
 @requires_auth
 def headers(payload):
     print(payload)
     return 'Access Granted'
+
+@app.route('/image')
+@requires_auth('get:images')
+def images(payload):
+    print(payload)
+    return 'not implemented'
