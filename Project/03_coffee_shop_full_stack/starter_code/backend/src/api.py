@@ -46,20 +46,15 @@ def get_drink_detail(payload):
 @requires_auth('post:drinks')
 def create_drink(payload):
     body = request.get_json()
-
     if not ('title' in body and 'recipe' in body):
         abort(422)
-
     title = body.get('title')
     recipe = body.get('recipe')
-
-    print('title', title)
-    print('recipe', recipe)
-
+    if type(recipe) is dict:
+        recipe = [recipe]
     try:
-        new_drink = Drink(title=title, recipe=recipe)
+        new_drink = Drink(title=title, recipe=json.dumps(recipe))
         new_drink.insert()
-
         return {
             "success": True,
             "drinks": [new_drink.long()]
